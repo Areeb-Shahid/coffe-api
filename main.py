@@ -41,7 +41,7 @@ class Cafe(db.Model):
         return {column.name: getattr(self, column.name) for column in self.__table__.columns}
 
 
-with app.create_contect():
+with app.app_context():
     db.create_all()
 
 
@@ -73,7 +73,44 @@ def get_random_cafe():
         }
     })
 
+
+@app.route("/all")
+def get_all_cafes():
+    all_cafes = Cafe.query.all()
+    cafes_json = [cafe.to_dict() for cafe in all_cafes]
+    return jsonify(cafes=cafes_json)
+
+
 ## HTTP GET - Read Record
+
+@app.route("/search")
+def get_cafe_at_location():
+    query_location = request.args.get("loc")
+    matched_cafes = Cafe.query.filter(Cafe.location.ilike(f"%{query_location}%")).all()
+    if matched_cafes:
+        return jsonify(cafes=[cafe.to_dict() for cafe in matched_cafes])
+    else:
+        return jsonify(error={"Not Found": "Sorry, we don't have a cafe at that location."}), 404
+
+
+@app.route("/add", methods=["POST"])
+def post_new_cafe():
+    new_cafe = Cafe(
+        name=request.form.get("name"),
+        map_url=request.form.get("map_url"),
+        img_url=request.form.get("img_url"),
+        location=request.form.get("loc"),
+        has_sockets=bool(request.form.get("sockets")),
+        has_toilet=bool(request.form.get("toilet")),
+        has_wifi=bool(request.form.get("wifi")),
+        can_take_calls=bool(request.form.get("calls")),
+        seats=request.form.get("seats"),
+        coffee_price=request.form.get("coffee_price"),
+    )
+    db.session.add(new_cafe)
+    db.session.commit()
+    return jsonify(response={"success": "Successfully added the new cafe."})
+
 
 ## HTTP POST - Create Record
 
